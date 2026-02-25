@@ -38,7 +38,10 @@ class ProcessRequest(BaseModel):
 async def _resolve_transcript(req: ProcessRequest) -> tuple[str, str | None, bool]:
     """Return (raw_transcript, video_id, from_cache=False)."""
     if req.url:
-        raw, video_id = get_transcript(req.url, use_cache=settings.cache_transcripts)
+        import anyio
+        raw, video_id = await anyio.to_thread.run_sync(
+            get_transcript, req.url, settings.cache_transcripts
+        )
         return raw, video_id, False
     return req.transcript, None, False  # type: ignore[return-value]
 

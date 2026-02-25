@@ -28,15 +28,15 @@ function CodeBlock({ className, children }) {
 }
 
 const mdComponents = {
-    code({ inline, className, children }) {
+    code({ node, inline, className, children, ...props }) {
         if (inline) {
             return (
-                <code className="bg-surface-700 text-brand-300 rounded px-1.5 py-0.5 text-sm font-mono">
+                <code className="bg-surface-700 text-brand-300 rounded px-1.5 py-0.5 text-sm font-mono" {...props}>
                     {children}
                 </code>
             );
         }
-        return <CodeBlock className={className}>{children}</CodeBlock>;
+        return <CodeBlock className={className} {...props}>{children}</CodeBlock>;
     },
     h1: ({ children }) => (
         <h1 className="text-2xl font-bold text-white mt-8 mb-4 border-b border-surface-600 pb-2">{children}</h1>

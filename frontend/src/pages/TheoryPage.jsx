@@ -16,18 +16,18 @@ function slugify(text) {
 }
 
 const mdComponents = {
-    h1: ({ children }) => (
-        <h1 id={slugify(String(children))} className="text-2xl font-bold text-white mt-8 mb-4 border-b border-surface-600 pb-2">
+    h1: ({ node, children, ...props }) => (
+        <h1 id={slugify(String(children))} className="text-2xl font-bold text-white mt-8 mb-4 border-b border-surface-600 pb-2" {...props}>
             {children}
         </h1>
     ),
-    h2: ({ children }) => (
-        <h2 id={slugify(String(children))} className="text-xl font-semibold text-brand-300 mt-6 mb-3">
+    h2: ({ node, children, ...props }) => (
+        <h2 id={slugify(String(children))} className="text-xl font-semibold text-brand-300 mt-6 mb-3" {...props}>
             {children}
         </h2>
     ),
-    h3: ({ children }) => (
-        <h3 id={slugify(String(children))} className="text-lg font-semibold text-slate-200 mt-5 mb-2">
+    h3: ({ node, children, ...props }) => (
+        <h3 id={slugify(String(children))} className="text-lg font-semibold text-slate-200 mt-5 mb-2" {...props}>
             {children}
         </h3>
     ),

@@ -29,15 +29,30 @@ export default function InputPage() {
                 : { transcript: transcriptValue.trim() };
 
         try {
-            const result = await processInput(input);
-            setTheory(result.theory);
-            setNotebook(result.notebook);
-            setMetadata(result.metadata);
-            setSessionId(result.session_id);
+            // Clear previous state and prep for stream
+            setTheory("");
+            setNotebook("");
+            setMetadata(null);
+            setSessionId(null);
             navigate("/theory");
+
+            import("../api").then(({ streamProcess }) => {
+                streamProcess(input, {
+                    onTheoryToken: (token) => setTheory((prev) => prev + token),
+                    onNotebookToken: (token) => setNotebook((prev) => prev + token),
+                    onMetadata: (meta) => setMetadata(meta),
+                    onDone: (data) => {
+                        setSessionId(data.session_id);
+                        setLoading(false);
+                    },
+                    onError: (err) => {
+                        addToast(err.message || "Streaming failed.");
+                        setLoading(false);
+                    }
+                });
+            });
         } catch (err) {
-            addToast(err.message || "Processing failed. Please try again.");
-        } finally {
+            addToast(err.message || "Failed to start processing.");
             setLoading(false);
         }
     };
@@ -74,8 +89,8 @@ export default function InputPage() {
                                 id={`tab-${m}`}
                                 onClick={() => setMode(m)}
                                 className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${mode === m
-                                        ? "bg-brand-600 text-white shadow shadow-brand-900/40"
-                                        : "text-slate-400 hover:text-white"
+                                    ? "bg-brand-600 text-white shadow shadow-brand-900/40"
+                                    : "text-slate-400 hover:text-white"
                                     }`}
                             >
                                 {m === "url" ? "YouTube URL" : "Paste Transcript"}
