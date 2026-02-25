@@ -34,14 +34,14 @@ const mdComponents = {
 };
 
 export default function TheoryPage() {
-    const { theory } = useApp();
+    const { theory, loading } = useApp();
     const navigate = useNavigate();
 
     useEffect(() => {
-        if (!theory) navigate("/");
-    }, [theory, navigate]);
+        if (!theory && !loading) navigate("/");
+    }, [theory, loading, navigate]);
 
-    if (!theory) return null;
+    if (!theory && !loading) return null;
 
     return (
         <div className="mx-auto max-w-6xl px-4 py-8 animate-fade-in">

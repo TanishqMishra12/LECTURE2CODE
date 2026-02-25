@@ -71,14 +71,14 @@ const mdComponents = {
 };
 
 export default function NotebookPage() {
-    const { notebook, sessionId } = useApp();
+    const { notebook, sessionId, loading } = useApp();
     const navigate = useNavigate();
 
     useEffect(() => {
-        if (!notebook) navigate("/");
-    }, [notebook, navigate]);
+        if (!notebook && !loading) navigate("/");
+    }, [notebook, loading, navigate]);
 
-    if (!notebook) return null;
+    if (!notebook && !loading) return null;
 
     const handleExport = () => {
         if (sessionId) window.open(exportUrl(sessionId), "_blank");

@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from typing import Optional, AsyncIterator
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Body
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, model_validator
 from sse_starlette.sse import EventSourceResponse
@@ -25,7 +25,7 @@ class ProcessRequest(BaseModel):
     transcript: Optional[str] = None
 
     @model_validator(mode="after")
-    def validate_exactly_one(self) -> "ProcessRequest":
+    def validate_exactly_one(self):
         has_url = bool(self.url and self.url.strip())
         has_transcript = bool(self.transcript and self.transcript.strip())
         if has_url and has_transcript:
@@ -48,7 +48,7 @@ async def _resolve_transcript(req: ProcessRequest) -> tuple[str, str | None, boo
 
 @router.post("/process")
 @limiter.limit(f"{settings.rate_limit_per_hour}/hour")
-async def process(request: Request, body: ProcessRequest) -> JSONResponse:
+async def process(request: Request, body: ProcessRequest = Body(...)) -> JSONResponse:
     t_start = time.time()
 
     raw_transcript, video_id, _ = await _resolve_transcript(body)
@@ -84,7 +84,7 @@ async def process(request: Request, body: ProcessRequest) -> JSONResponse:
 
 @router.post("/process/stream")
 @limiter.limit(f"{settings.rate_limit_per_hour}/hour")
-async def process_stream(request: Request, body: ProcessRequest) -> EventSourceResponse:
+async def process_stream(request: Request, body: ProcessRequest = Body(...)) -> EventSourceResponse:
     t_start = time.time()
     raw_transcript, video_id, _ = await _resolve_transcript(body)
     token_count = approximate_token_count(raw_transcript)
