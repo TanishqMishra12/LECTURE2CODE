@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -13,15 +13,51 @@ html {
 }
 
 body {
-  @apply bg-surface-900 text-slate-200 font-sans;
+  @apply bg-background-dark text-slate-300 font-mono;
   min-height: 100vh;
+}
+
+::selection {
+  @apply bg-primary text-white;
 }
 
 /* ── Scrollbar ──────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { @apply bg-surface-800; }
-::-webkit-scrollbar-thumb { @apply bg-surface-500 rounded-full; }
-::-webkit-scrollbar-thumb:hover { @apply bg-brand-600; }
+::-webkit-scrollbar-thumb { @apply bg-surface-500; }
+::-webkit-scrollbar-thumb:hover { @apply bg-primary; }
+
+/* ── Terminal Cursor ────────────────────────────────────────────────────── */
+.terminal-cursor {
+  display: inline-block;
+  width: 8px;
+  height: 1.2em;
+  background-color: #1717cf;
+  animation: blink 1s step-end infinite;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+
+/* ── Scroll Reveal ──────────────────────────────────────────────────────── */
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.6s ease-out;
+}
+.scroll-reveal.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── Terminal Window ────────────────────────────────────────────────────── */
+.terminal-window {
+  box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+}
+
+/* ── Material Symbols ───────────────────────────────────────────────────── */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
 
 /* ── Prose / Markdown ───────────────────────────────────────────────────── */
 .prose-lecture {
@@ -60,12 +96,12 @@ body {
 
 .prose-lecture strong { @apply text-white font-semibold; }
 .prose-lecture code:not([class]) {
-  @apply bg-surface-700 text-brand-300 rounded px-1.5 py-0.5 text-sm font-mono;
+  @apply bg-surface-700 text-brand-300 px-1.5 py-0.5 text-sm font-mono;
 }
 
 /* ── Code blocks (highlight.js) ─────────────────────────────────────────── */
 .prose-lecture pre {
-  @apply relative rounded-xl bg-surface-800 border border-surface-600 overflow-auto my-5;
+  @apply relative bg-surface-800 border border-surface-600 overflow-auto my-5;
 }
 .prose-lecture pre code {
   @apply block p-5 text-sm font-mono leading-relaxed;
@@ -76,10 +112,16 @@ body {
 
 /* ── Details / summary (collapsible solutions) ───────────────────────────── */
 .prose-lecture details {
-  @apply border border-surface-600 rounded-lg mb-4 overflow-hidden;
+  @apply border border-surface-600 mb-4 overflow-hidden;
 }
 .prose-lecture summary {
   @apply cursor-pointer px-4 py-2 bg-surface-700 text-brand-300 font-medium hover:bg-surface-600 transition-colors select-none;
 }
 .prose-lecture details[open] summary { @apply rounded-b-none; }
 .prose-lecture details > *:not(summary) { @apply px-4 py-2; }
+
+/* ── Dot grid pattern (for CTA section) ─────────────────────────────────── */
+.dot-grid-bg {
+  background-image: radial-gradient(circle at 2px 2px, #1717cf 1px, transparent 0);
+  background-size: 24px 24px;
+}
