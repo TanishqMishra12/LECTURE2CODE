@@ -4,7 +4,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from threading import Lock
-from typing import Any
+from typing import Any, Optional
 
 
 @dataclass
@@ -12,6 +12,9 @@ class SessionEntry:
     theory: str
     notebook: str
     metadata: dict[str, Any]
+    pdf_summary: str = ""
+    pdf_points: str = ""
+    pdf_text: str = ""
     created_at: float = field(default_factory=time.time)
 
 
@@ -23,9 +26,24 @@ class SessionStore:
         self._lock = Lock()
         self._ttl = ttl_seconds
 
-    def save(self, theory: str, notebook: str, metadata: dict[str, Any]) -> str:
+    def save(
+        self,
+        theory: str,
+        notebook: str,
+        metadata: dict[str, Any],
+        pdf_summary: str = "",
+        pdf_points: str = "",
+        pdf_text: str = "",
+    ) -> str:
         session_id = str(uuid.uuid4())
-        entry = SessionEntry(theory=theory, notebook=notebook, metadata=metadata)
+        entry = SessionEntry(
+            theory=theory,
+            notebook=notebook,
+            metadata=metadata,
+            pdf_summary=pdf_summary,
+            pdf_points=pdf_points,
+            pdf_text=pdf_text,
+        )
         with self._lock:
             self._purge_expired()
             self._store[session_id] = entry

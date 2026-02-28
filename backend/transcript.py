@@ -4,13 +4,17 @@ import re
 from threading import Lock
 from typing import Optional
 
-from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
+from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api._errors import TranscriptsDisabled, NoTranscriptFound
 from fastapi import HTTPException
 
 
 # In-memory transcript cache: video_id -> transcript text
 _cache: dict[str, str] = {}
 _cache_lock = Lock()
+
+# Reusable API client instance
+_yt_api = YouTubeTranscriptApi()
 
 
 def extract_video_id(url: str) -> Optional[str]:
@@ -45,8 +49,8 @@ def get_transcript(url: str, use_cache: bool = True) -> tuple[str, str | None]:
                 return _cache[video_id], video_id
 
     try:
-        transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=["en"])
-        transcript_text = " ".join(entry["text"] for entry in transcript_list)
+        transcript = _yt_api.fetch(video_id, languages=["en"])
+        transcript_text = " ".join(snippet.text for snippet in transcript)
     except TranscriptsDisabled:
         raise HTTPException(
             status_code=400,

@@ -5,11 +5,12 @@ const navLinks = [
     { to: "/", label: "Process" },
     { to: "/theory", label: "Theory" },
     { to: "/notebook", label: "Notebook" },
+    { to: "/pdf", label: "PDF Results" },
 ];
 
 export default function Navbar() {
     const { pathname } = useLocation();
-    const { sessionId } = useApp();
+    const { sessionId, pdfSessionId } = useApp();
 
     return (
         <header className="sticky top-0 z-50 w-full border-b border-surface-600 bg-surface-800/80 backdrop-blur-md">
@@ -27,13 +28,14 @@ export default function Navbar() {
                     {navLinks.map(({ to, label }) => {
                         const active = pathname === to;
                         if ((to === "/theory" || to === "/notebook") && !sessionId) return null;
+                        if (to === "/pdf" && !pdfSessionId) return null;
                         return (
                             <Link
                                 key={to}
                                 to={to}
                                 className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${active
-                                        ? "bg-brand-600 text-white shadow shadow-brand-900/30"
-                                        : "text-slate-400 hover:bg-surface-600 hover:text-white"
+                                    ? "bg-brand-600 text-white shadow shadow-brand-900/30"
+                                    : "text-slate-400 hover:bg-surface-600 hover:text-white"
                                     }`}
                             >
                                 {label}
@@ -45,3 +47,4 @@ export default function Navbar() {
         </header>
     );
 }
+

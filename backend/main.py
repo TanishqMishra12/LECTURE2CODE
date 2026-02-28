@@ -13,6 +13,7 @@ from config import settings
 from routers.health import router as health_router
 from routers.process import router as process_router
 from routers.export_router import router as export_router
+from routers.pdf_router import router as pdf_router
 
 
 limiter = Limiter(key_func=get_remote_address, default_limits=[f"{settings.rate_limit_per_hour}/hour"])
@@ -50,3 +51,4 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.include_router(health_router)
 app.include_router(process_router)
 app.include_router(export_router)
+app.include_router(pdf_router)

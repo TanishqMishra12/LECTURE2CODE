@@ -1,7 +1,5 @@
-from __future__ import annotations
-
 import time
-from typing import Optional, AsyncIterator
+from typing import Optional, AsyncIterator, Tuple, Any
 
 from fastapi import APIRouter, Request, Body
 from fastapi.responses import JSONResponse
@@ -9,6 +7,7 @@ from pydantic import BaseModel, model_validator
 from sse_starlette.sse import EventSourceResponse
 
 from chains import run_chains, stream_theory_chain, stream_notebook_chain, prepare_transcript
+from postprocess import fix_markdown
 from session import get_session_store
 from transcript import get_transcript, approximate_token_count
 from config import settings
@@ -103,8 +102,10 @@ async def process_stream(request: Request, body: ProcessRequest = Body(...)) -> 
             notebook_buf.append(token)
             yield {"event": "notebook_token", "data": token}
 
-        theory = "".join(theory_buf)
-        notebook = "".join(notebook_buf)
+        # Post-process the accumulated content for the saved session
+        theory = fix_markdown("".join(theory_buf))
+        notebook = fix_markdown("".join(notebook_buf))
+
         model = (
             settings.ollama_model if settings.llm_backend == "ollama" else settings.openai_model
         )
@@ -121,6 +122,9 @@ async def process_stream(request: Request, body: ProcessRequest = Body(...)) -> 
         session_id = store.save(theory=theory, notebook=notebook, metadata=metadata)
 
         import json
+        # Send the post-processed content as replacement events
+        yield {"event": "theory_replace", "data": theory}
+        yield {"event": "notebook_replace", "data": notebook}
         yield {"event": "metadata", "data": json.dumps(metadata)}
         yield {"event": "done", "data": json.dumps({"session_id": session_id})}
 

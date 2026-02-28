@@ -4,6 +4,7 @@ import Navbar from "./components/Navbar";
 import InputPage from "./pages/InputPage";
 import TheoryPage from "./pages/TheoryPage";
 import NotebookPage from "./pages/NotebookPage";
+import PdfResultPage from "./pages/PdfResultPage";
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
               <Route path="/" element={<InputPage />} />
               <Route path="/theory" element={<TheoryPage />} />
               <Route path="/notebook" element={<NotebookPage />} />
+              <Route path="/pdf" element={<PdfResultPage />} />
             </Routes>
           </main>
         </div>

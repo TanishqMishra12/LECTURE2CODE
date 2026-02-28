@@ -25,10 +25,15 @@ class Settings(BaseSettings):
     # OpenAI
     openai_api_key: str = ""
     openai_model: str = "gpt-4o"
+    openai_base_url: str = ""
 
     # Transcript
     max_transcript_tokens: int = 6000
     cache_transcripts: bool = True
+
+    # PDF
+    max_pdf_pages: int = 50
+    max_pdf_size_mb: int = 20
 
     # Rate limiting
     rate_limit_per_hour: int = 10

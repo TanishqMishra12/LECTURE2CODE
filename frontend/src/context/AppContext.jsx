@@ -10,6 +10,11 @@ export function AppProvider({ children }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
+    // PDF state
+    const [pdfSummary, setPdfSummary] = useState("");
+    const [pdfPoints, setPdfPoints] = useState("");
+    const [pdfSessionId, setPdfSessionId] = useState(null);
+
     const value = {
         theory, setTheory,
         notebook, setNotebook,
@@ -17,6 +22,10 @@ export function AppProvider({ children }) {
         sessionId, setSessionId,
         loading, setLoading,
         error, setError,
+        // PDF
+        pdfSummary, setPdfSummary,
+        pdfPoints, setPdfPoints,
+        pdfSessionId, setPdfSessionId,
     };
 
     return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

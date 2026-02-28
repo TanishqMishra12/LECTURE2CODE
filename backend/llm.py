@@ -11,13 +11,20 @@ def get_llm(fallback: bool = False) -> BaseChatModel:
     """Return the configured LLM instance."""
     if settings.llm_backend == "openai":
         from langchain_openai import ChatOpenAI
+        
+        # Check if we should use a custom base URL (e.g. for OpenRouter)
+        base_url = settings.openai_base_url or None
+        if not base_url and settings.openai_api_key.startswith("sk-or-v1-"):
+             base_url = "https://openrouter.ai/api/v1"
+
         return ChatOpenAI(
             model=settings.openai_model,
             temperature=0.2,
             api_key=settings.openai_api_key,
+            base_url=base_url
         )
     else:
-        from langchain_community.chat_models import ChatOllama
+        from langchain_ollama import ChatOllama
         model = settings.ollama_fallback_model if fallback else settings.ollama_model
         return ChatOllama(
             model=model,

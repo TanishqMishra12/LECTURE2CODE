@@ -6,97 +6,139 @@ from typing import AsyncIterator
 from langchain_core.messages import HumanMessage
 
 from llm import get_llm, prepare_transcript
+from postprocess import fix_markdown
 
 
 THEORY_PROMPT = """\
-You are an expert computer science educator. Given the following lecture transcript, produce a comprehensive theory page in Markdown.
+You are a computer science teacher. Read the lecture transcript below and write a theory page in Markdown format.
 
-Structure your response EXACTLY as follows (use these heading levels):
+IMPORTANT FORMATTING RULES:
+- Put a blank line before and after every heading (#, ##, ###).
+- Put a blank line before and after every table.
+- Put a blank line before and after every code block.
+- Use proper newlines between paragraphs.
+- Use numbered lists (1. 2. 3.) with each item on its own line.
+- Use bullet points (- item) with each item on its own line.
+
+Write these sections in order:
 
 # Concept Overview
-Write a 2-3 sentence plain-English summary of the main topic.
+
+Write 2-3 sentences explaining the main topic in simple English.
 
 # Step-by-Step Explanation
-Provide a numbered breakdown of the concept. Include a concrete worked example with actual values.
+
+Write a numbered list explaining the concept step by step.
+Include a worked example with actual values.
 
 # Common Mistakes
-List the top 3-5 common pitfalls students make with this topic. For each, explain the mistake and the correction.
+
+List 3 common mistakes students make. For each one, write:
+- **Mistake**: what they do wrong
+- **Fix**: the correct approach
 
 # Complexity Analysis
-Provide a Markdown table with columns: Operation | Time Complexity | Space Complexity | Justification.
-Cover all key operations discussed.
+
+Write a table like this:
+
+| Operation | Time Complexity | Space Complexity |
+|-----------|----------------|-----------------|
+| Example   | O(n)           | O(1)            |
 
 # Key Takeaways
-Provide 3-5 bullet points summarising the most important facts for exam revision.
+
+Write 3-5 bullet points with the most important facts.
 
 ---
 TRANSCRIPT:
 {transcript}
 ---
 
-Respond only with the Markdown content. Do not include any preamble or meta-commentary.
+Write ONLY the Markdown content. No preamble. No commentary.
 """
 
 NOTEBOOK_PROMPT = """\
-You are an expert programming instructor. Given the following lecture transcript, produce an interactive code notebook in Markdown.
+You are a programming teacher. Read the lecture transcript below and write a code notebook in Markdown format.
 
-Structure your response EXACTLY as follows (use these heading levels):
+IMPORTANT FORMATTING RULES:
+- Put a blank line before and after every heading (#, ##, ###).
+- Put a blank line before and after every code block (```python ... ```).
+- Put a blank line before and after every table.
+- Each code block must start with ```python on its own line and end with ``` on its own line.
+- Use proper newlines between paragraphs.
+
+Write these sections in order:
 
 # Code Implementation
-Provide clean, fully-commented Python code that implements the concept from the lecture.
-Wrap code in triple-backtick fenced blocks with the language tag (```python).
+
+Write clean Python code with comments that implements the main concept.
+Wrap the code in a fenced code block:
+
+```python
+# your code here
+```
 
 # Dry Run Trace
-Show a step-by-step trace of the algorithm on a concrete small example.
-Use a Markdown table with columns: Step | Variable States | Explanation.
+
+Show a step-by-step trace using a table:
+
+| Step | Variables | What Happens |
+|------|-----------|-------------|
+| 1    | x=0       | Initialize  |
 
 # Practice Problems
 
 ## Problem 1 (Easy)
-State the problem clearly.
+
+State the problem.
 
 <details>
 <summary>Show Solution</summary>
 
 ```python
-# solution code here
+# solution here
 ```
 
 </details>
 
 ## Problem 2 (Medium)
-State the problem clearly.
+
+State the problem.
 
 <details>
 <summary>Show Solution</summary>
 
 ```python
-# solution code here
+# solution here
 ```
 
 </details>
 
 ## Problem 3 (Hard)
-State the problem clearly.
+
+State the problem.
 
 <details>
 <summary>Show Solution</summary>
 
 ```python
-# solution code here
+# solution here
 ```
 
 </details>
 
 # Edge Cases
-Provide a Markdown table with columns: Edge Case | Example Input | Expected Behaviour.
+
+| Edge Case | Example Input | Expected Output |
+|-----------|--------------|----------------|
+| Empty     | []           | None           |
 
 ---
 TRANSCRIPT:
 {transcript}
 ---
 
-Respond only with the Markdown content. Do not include any preamble or meta-commentary.
+Write ONLY the Markdown content. No preamble. No commentary.
 """
 
 
@@ -104,7 +146,7 @@ async def _run_chain(prompt_template: str, transcript: str, use_fallback: bool =
     llm = get_llm(fallback=use_fallback)
     prompt = prompt_template.format(transcript=transcript)
     response = await llm.ainvoke([HumanMessage(content=prompt)])
-    return response.content
+    return fix_markdown(response.content)
 
 
 async def run_theory_chain(transcript: str) -> str:
@@ -133,17 +175,28 @@ async def run_chains(transcript: str) -> tuple[str, str]:
 
 async def stream_theory_chain(transcript: str) -> AsyncIterator[str]:
     """Yield theory tokens one at a time."""
-    llm = get_llm()
-    prompt = THEORY_PROMPT.format(transcript=transcript)
-    async for chunk in llm.astream([HumanMessage(content=prompt)]):
-        if hasattr(chunk, "content") and chunk.content:
-            yield chunk.content
+    try:
+        llm = get_llm()
+        prompt = THEORY_PROMPT.format(transcript=transcript)
+        buf: list[str] = []
+        async for chunk in llm.astream([HumanMessage(content=prompt)]):
+            if hasattr(chunk, "content") and chunk.content:
+                buf.append(chunk.content)
+                yield chunk.content
+        # After streaming, yield a fixed version as a replacement signal
+        # The frontend accumulates tokens, so we yield a special "replace" event
+    except Exception as e:
+        yield f"\n\n> [!ERROR] Theory generation failed: {str(e)}\n"
 
 
 async def stream_notebook_chain(transcript: str) -> AsyncIterator[str]:
     """Yield notebook tokens one at a time."""
-    llm = get_llm()
-    prompt = NOTEBOOK_PROMPT.format(transcript=transcript)
-    async for chunk in llm.astream([HumanMessage(content=prompt)]):
-        if hasattr(chunk, "content") and chunk.content:
-            yield chunk.content
+    try:
+        llm = get_llm()
+        prompt = NOTEBOOK_PROMPT.format(transcript=transcript)
+        async for chunk in llm.astream([HumanMessage(content=prompt)]):
+            if hasattr(chunk, "content") and chunk.content:
+                yield chunk.content
+    except Exception as e:
+        yield f"\n\n> [!ERROR] Notebook generation failed: {str(e)}\n"
+
