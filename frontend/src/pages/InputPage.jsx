@@ -1,278 +1,273 @@
 import { useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { processInput, uploadPdf } from "../api";
-import { useApp } from "../context/AppContext";
-import { ToastContainer, useToasts } from "../components/Toast";
-import Skeleton from "../components/Skeleton";
+import { Link, useNavigate } from "react-router-dom";
+import { useJobPolling } from "../hooks/useJobPolling";
 
-const MODES = ["url", "transcript", "pdf"];
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 export default function InputPage() {
-    const navigate = useNavigate();
-    const {
-        setTheory, setNotebook, setMetadata, setSessionId,
-        setPdfSummary, setPdfPoints, setPdfSessionId,
-        loading, setLoading,
-    } = useApp();
-
-    const [mode, setMode] = useState("url");
-    const [urlValue, setUrlValue] = useState("");
-    const [transcriptValue, setTranscriptValue] = useState("");
+    const [mode, setMode] = useState("youtube"); // youtube | transcript | pdf
+    const [url, setUrl] = useState("");
+    const [transcript, setTranscript] = useState("");
     const [pdfFile, setPdfFile] = useState(null);
-    const [isDragging, setIsDragging] = useState(false);
+    const [jobId, setJobId] = useState(null);
+    const [submitting, setSubmitting] = useState(false);
+    const [submitError, setSubmitError] = useState(null);
     const fileInputRef = useRef(null);
-    const { toasts, addToast, removeToast } = useToasts();
+    const navigate = useNavigate();
 
-    // ── Lecture processing (existing flow) ──
-    const handleLectureSubmit = async (e) => {
+    const { status, progress, error: pollError } = useJobPolling(jobId);
+
+    // Redirect to results when done
+    if (status === "done" && jobId) {
+        navigate(`/results/${jobId}`);
+    }
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
-
-        const input =
-            mode === "url"
-                ? { url: urlValue.trim() }
-                : { transcript: transcriptValue.trim() };
+        setSubmitting(true);
+        setSubmitError(null);
 
         try {
-            setTheory("");
-            setNotebook("");
-            setMetadata(null);
-            setSessionId(null);
-            navigate("/theory");
+            let res;
 
-            import("../api").then(({ streamProcess }) => {
-                streamProcess(input, {
-                    onTheoryToken: (token) => setTheory((prev) => prev + token),
-                    onNotebookToken: (token) => setNotebook((prev) => prev + token),
-                    onTheoryReplace: (content) => setTheory(content),
-                    onNotebookReplace: (content) => setNotebook(content),
-                    onMetadata: (meta) => setMetadata(meta),
-                    onDone: (data) => {
-                        setSessionId(data.session_id);
-                        setLoading(false);
-                    },
-                    onError: (err) => {
-                        addToast(err.message || "Streaming failed.");
-                        setLoading(false);
-                    }
+            if (mode === "pdf") {
+                if (!pdfFile) {
+                    setSubmitError("Please select a PDF file.");
+                    setSubmitting(false);
+                    return;
+                }
+                // Upload as multipart/form-data
+                const formData = new FormData();
+                formData.append("file", pdfFile);
+
+                res = await fetch(`${API_BASE}/api/ingest/pdf`, {
+                    method: "POST",
+                    body: formData,
                 });
-            });
+            } else {
+                // JSON body for youtube / transcript
+                let body;
+                if (mode === "youtube") {
+                    body = { source: url, input_type: "youtube" };
+                } else {
+                    body = { source: transcript, input_type: "transcript", content: transcript };
+                }
+
+                res = await fetch(`${API_BASE}/api/ingest`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(body),
+                });
+            }
+
+            const json = await res.json();
+            if (json.success && json.data?.jobId) {
+                setJobId(json.data.jobId);
+            } else {
+                setSubmitError(json.error || "Failed to start processing.");
+            }
         } catch (err) {
-            addToast(err.message || "Failed to start processing.");
-            setLoading(false);
+            setSubmitError(err.message);
+        }
+        setSubmitting(false);
+    };
+
+    const handleFileChange = (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (!file.name.toLowerCase().endsWith(".pdf")) {
+                setSubmitError("Only PDF files are accepted.");
+                return;
+            }
+            if (file.size > 20 * 1024 * 1024) {
+                setSubmitError("PDF file exceeds 20MB limit.");
+                return;
+            }
+            setPdfFile(file);
+            setSubmitError(null);
         }
     };
 
-    // ── PDF processing (new flow) ──
-    const handlePdfSubmit = async (e) => {
-        e.preventDefault();
-        if (!pdfFile) {
-            addToast("Please select a PDF file.");
-            return;
-        }
-        setLoading(true);
-        setPdfSummary("");
-        setPdfPoints("");
-        setPdfSessionId(null);
-        navigate("/pdf");
-
-        try {
-            const data = await uploadPdf(pdfFile);
-            setPdfSummary(data.summary);
-            setPdfPoints(data.points);
-            setPdfSessionId(data.session_id);
-        } catch (err) {
-            addToast(err.message || "PDF processing failed.");
-            navigate("/");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // ── Drag & drop handlers ──
     const handleDrop = (e) => {
         e.preventDefault();
-        setIsDragging(false);
         const file = e.dataTransfer.files?.[0];
-        if (file && file.type === "application/pdf") {
+        if (file) {
+            if (!file.name.toLowerCase().endsWith(".pdf")) {
+                setSubmitError("Only PDF files are accepted.");
+                return;
+            }
+            if (file.size > 20 * 1024 * 1024) {
+                setSubmitError("PDF file exceeds 20MB limit.");
+                return;
+            }
             setPdfFile(file);
-        } else {
-            addToast("Please drop a PDF file.");
+            setSubmitError(null);
         }
     };
 
     const handleDragOver = (e) => {
         e.preventDefault();
-        setIsDragging(true);
     };
 
-    const handleDragLeave = () => setIsDragging(false);
-
-    const handleFileSelect = (e) => {
-        const file = e.target.files?.[0];
-        if (file) setPdfFile(file);
-    };
-
-    const handleSubmit = mode === "pdf" ? handlePdfSubmit : handleLectureSubmit;
-
-    const modeLabel = (m) => {
-        if (m === "url") return "YouTube URL";
-        if (m === "transcript") return "Paste Transcript";
-        return "Upload PDF";
-    };
+    const isProcessing = jobId && status && status !== "done" && status !== "error";
 
     return (
-        <div className="mx-auto max-w-2xl px-4 py-16 animate-fade-in">
-            {/* Hero */}
-            <div className="mb-12 text-center">
-                <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 shadow-2xl shadow-brand-900/50">
-                    <span className="text-2xl font-bold text-white">L2C</span>
+        <div className="min-h-screen bg-bg-page font-body">
+            {/* Simple Navbar */}
+            <nav className="border-b border-border-light bg-white">
+                <div className="max-w-content mx-auto flex items-center justify-between px-10 h-16">
+                    <Link to="/" className="text-xl font-heading font-bold text-text-primary tracking-tight">
+                        lecture2code
+                    </Link>
                 </div>
-                <h1 className="text-4xl font-bold tracking-tight text-white">
-                    Lecture<span className="text-brand-400">2</span>Code
+            </nav>
+
+            <main className="max-w-2xl mx-auto px-6 py-16">
+                <h1 className="text-3xl md:text-4xl font-heading font-bold text-text-primary mb-2 text-center">
+                    Process a lecture
                 </h1>
-                <p className="mt-3 text-slate-400 text-base max-w-md mx-auto leading-relaxed">
-                    Transform any coding lecture into a structured theory page and an interactive
-                    code notebook — or upload a PDF for instant summaries &amp; Q&amp;A.
+                <p className="text-text-secondary text-center mb-10">
+                    Paste a YouTube link, drop raw transcript text, or upload a PDF.
                 </p>
-            </div>
 
-            {loading ? (
-                <Skeleton />
-            ) : (
-                <form
-                    onSubmit={handleSubmit}
-                    className="rounded-2xl border border-surface-600 bg-surface-800 p-6 shadow-2xl shadow-black/30"
-                >
-                    {/* Mode tabs */}
-                    <div className="mb-6 flex rounded-xl bg-surface-700 p-1 gap-1">
-                        {MODES.map((m) => (
-                            <button
-                                key={m}
-                                type="button"
-                                id={`tab-${m}`}
-                                onClick={() => setMode(m)}
-                                className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${mode === m
-                                    ? "bg-brand-600 text-white shadow shadow-brand-900/40"
-                                    : "text-slate-400 hover:text-white"
-                                    }`}
-                            >
-                                {modeLabel(m)}
-                            </button>
-                        ))}
-                    </div>
+                {/* Mode tabs */}
+                <div className="flex justify-center gap-2 mb-8">
+                    {[
+                        { id: "youtube", label: "YouTube" },
+                        { id: "transcript", label: "Transcript" },
+                        { id: "pdf", label: "PDF" },
+                    ].map((tab) => (
+                        <button
+                            key={tab.id}
+                            onClick={() => { setMode(tab.id); setSubmitError(null); }}
+                            className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${mode === tab.id
+                                ? "bg-accent text-white"
+                                : "bg-bg-muted text-text-secondary hover:text-text-primary"
+                                }`}
+                            disabled={isProcessing}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
 
-                    {/* Input area */}
-                    {mode === "url" && (
+                <form onSubmit={handleSubmit}>
+                    {mode === "youtube" && (
                         <div className="mb-6">
-                            <label
-                                htmlFor="youtube-url"
-                                className="mb-2 block text-sm font-medium text-slate-300"
-                            >
-                                YouTube Video URL
-                            </label>
+                            <label className="block text-sm font-medium text-text-primary mb-2">YouTube URL</label>
                             <input
-                                id="youtube-url"
                                 type="url"
-                                value={urlValue}
-                                onChange={(e) => setUrlValue(e.target.value)}
+                                value={url}
+                                onChange={(e) => setUrl(e.target.value)}
                                 placeholder="https://www.youtube.com/watch?v=..."
+                                className="w-full px-4 py-3 rounded-lg border border-border-light bg-white text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-shadow"
                                 required
-                                className="w-full rounded-xl border border-surface-500 bg-surface-700 px-4 py-3 text-sm text-slate-200 placeholder-slate-500 outline-none ring-0 transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30"
+                                disabled={isProcessing}
                             />
                         </div>
                     )}
 
                     {mode === "transcript" && (
                         <div className="mb-6">
-                            <label
-                                htmlFor="transcript-text"
-                                className="mb-2 block text-sm font-medium text-slate-300"
-                            >
-                                Lecture Transcript
-                            </label>
+                            <label className="block text-sm font-medium text-text-primary mb-2">Paste Transcript</label>
                             <textarea
-                                id="transcript-text"
-                                value={transcriptValue}
-                                onChange={(e) => setTranscriptValue(e.target.value)}
-                                placeholder="Paste the full lecture transcript here..."
-                                rows={10}
+                                value={transcript}
+                                onChange={(e) => setTranscript(e.target.value)}
+                                placeholder="Paste your lecture transcript here..."
+                                rows={8}
+                                className="w-full px-4 py-3 rounded-lg border border-border-light bg-white text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-shadow resize-y"
                                 required
-                                className="w-full resize-y rounded-xl border border-surface-500 bg-surface-700 px-4 py-3 text-sm text-slate-200 placeholder-slate-500 outline-none ring-0 transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 font-mono"
+                                disabled={isProcessing}
                             />
                         </div>
                     )}
 
                     {mode === "pdf" && (
                         <div className="mb-6">
-                            <label className="mb-2 block text-sm font-medium text-slate-300">
-                                Upload PDF
-                            </label>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept=".pdf"
+                                onChange={handleFileChange}
+                                className="hidden"
+                                disabled={isProcessing}
+                            />
                             <div
+                                onClick={() => fileInputRef.current?.click()}
                                 onDrop={handleDrop}
                                 onDragOver={handleDragOver}
-                                onDragLeave={handleDragLeave}
-                                onClick={() => fileInputRef.current?.click()}
-                                className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-4 py-10 cursor-pointer transition-all ${isDragging
-                                        ? "border-brand-400 bg-brand-900/20"
-                                        : pdfFile
-                                            ? "border-green-500/50 bg-green-900/10"
-                                            : "border-surface-500 bg-surface-700 hover:border-brand-500/50 hover:bg-surface-600"
+                                className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors ${pdfFile
+                                        ? "border-accent bg-blue-50"
+                                        : "border-border-light hover:border-accent"
                                     }`}
                             >
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept=".pdf"
-                                    onChange={handleFileSelect}
-                                    className="hidden"
-                                    id="pdf-file-input"
-                                />
                                 {pdfFile ? (
                                     <>
-                                        <div className="text-3xl">✅</div>
-                                        <p className="text-sm font-medium text-green-400">
-                                            {pdfFile.name}
-                                        </p>
-                                        <p className="text-xs text-slate-500">
-                                            {(pdfFile.size / 1024 / 1024).toFixed(1)} MB — Click or drop to replace
+                                        <div className="text-4xl mb-3">✅</div>
+                                        <p className="text-sm font-medium text-text-primary mb-1">{pdfFile.name}</p>
+                                        <p className="text-xs text-text-muted">
+                                            {(pdfFile.size / (1024 * 1024)).toFixed(2)} MB
+                                            <span className="mx-2">·</span>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setPdfFile(null);
+                                                    if (fileInputRef.current) fileInputRef.current.value = "";
+                                                }}
+                                                className="text-red-500 hover:underline"
+                                            >
+                                                Remove
+                                            </button>
                                         </p>
                                     </>
                                 ) : (
                                     <>
-                                        <div className="text-3xl">📄</div>
-                                        <p className="text-sm text-slate-400">
-                                            <span className="font-medium text-brand-400">Click to browse</span>{" "}
-                                            or drag and drop a PDF
-                                        </p>
-                                        <p className="text-xs text-slate-500">
-                                            Max 20 MB · PDF files only
-                                        </p>
+                                        <div className="text-4xl mb-3">📄</div>
+                                        <p className="text-sm text-text-secondary mb-1">Drop a PDF file here or click to browse</p>
+                                        <p className="text-xs text-text-muted">Max 20MB, up to 50 pages</p>
                                     </>
                                 )}
                             </div>
                         </div>
                     )}
 
-                    {/* Submit */}
+                    {submitError && (
+                        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                            {submitError}
+                        </div>
+                    )}
+
+                    {status === "error" && pollError && (
+                        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                            Processing failed: {pollError}
+                        </div>
+                    )}
+
+                    {isProcessing && (
+                        <div className="mb-6">
+                            <div className="flex items-center justify-between text-sm mb-2">
+                                <span className="text-text-secondary capitalize">{status}...</span>
+                                <span className="text-text-muted font-mono">{progress}%</span>
+                            </div>
+                            <div className="h-2 bg-bg-muted rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-accent rounded-full transition-all duration-500 ease-out"
+                                    style={{ width: `${progress}%` }}
+                                />
+                            </div>
+                        </div>
+                    )}
+
                     <button
                         type="submit"
-                        id="process-btn"
-                        disabled={mode === "pdf" && !pdfFile}
-                        className="w-full rounded-xl bg-gradient-to-r from-brand-600 to-brand-500 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-900/40 transition hover:brightness-110 hover:shadow-brand-500/30 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={submitting || isProcessing || (mode === "pdf" && !pdfFile)}
+                        className="w-full bg-accent text-white font-semibold py-3.5 rounded-lg text-base hover:bg-accent-hover transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {mode === "pdf" ? "Analyze PDF" : "Process Lecture"}
+                        {isProcessing ? "Processing..." : submitting ? "Starting..." : "Generate Notes & Code"}
                     </button>
-
-                    <p className="mt-4 text-center text-xs text-slate-500">
-                        {mode === "pdf"
-                            ? "PDF analysis may take 30 – 90 seconds depending on document length and LLM backend."
-                            : "Processing may take 30 – 90 seconds depending on transcript length and LLM backend."}
-                    </p>
                 </form>
-            )}
-
-            <ToastContainer toasts={toasts} onRemove={removeToast} />
+            </main>
         </div>
     );
 }

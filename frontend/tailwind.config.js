@@ -4,68 +4,51 @@ export default {
     "./index.html",
     "./src/**/*.{js,jsx,ts,tsx}",
   ],
-  darkMode: "class",
   theme: {
     extend: {
       colors: {
-        primary: "#1717cf",
-        "background-light": "#f6f6f8",
-        "background-dark": "#0a0a0f",
-        brand: {
-          50: "#f0f4ff",
-          100: "#e0e9ff",
-          200: "#c2d2ff",
-          300: "#93afff",
-          400: "#6487fb",
-          500: "#4563f5",
-          600: "#3347e8",
-          700: "#2a38cc",
-          800: "#2733a4",
-          900: "#263082",
-          950: "#191e50",
-        },
-        surface: {
-          900: "#0f1117",
-          800: "#161b27",
-          700: "#1e2535",
-          600: "#252d42",
-          500: "#2d3650",
-        },
+        accent: "#0066FF",
+        "accent-hover": "#0052CC",
+        "bg-page": "#FAFAFA",
+        "bg-card": "#FFFFFF",
+        "bg-muted": "#F5F5F5",
+        "text-primary": "#111111",
+        "text-secondary": "#666666",
+        "text-muted": "#999999",
+        "border-light": "#E5E5E5",
+        "border-muted": "#EEEEEE",
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
+        heading: ["'Bricolage Grotesque'", "system-ui", "sans-serif"],
+        body: ["'Inter'", "system-ui", "sans-serif"],
         mono: ["'JetBrains Mono'", "monospace"],
-        display: ["'JetBrains Mono'", "monospace"],
       },
-      borderRadius: {
-        DEFAULT: "0",
-        lg: "0",
-        xl: "0",
-        "2xl": "0",
-        full: "9999px",
-        // Keep rounded versions for inner pages
-        "inner": "0.75rem",
-        "inner-lg": "1rem",
-        "inner-xl": "1.25rem",
-      },
-      animation: {
-        "pulse-slow": "pulse 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite",
-        "fade-in": "fadeIn 0.3s ease-out",
-        "slide-up": "slideUp 0.35s ease-out",
-        "blink": "blink 1s step-end infinite",
+      maxWidth: {
+        content: "1100px",
       },
       keyframes: {
-        fadeIn: {
-          "0%": { opacity: 0 },
-          "100%": { opacity: 1 },
+        "fade-up": {
+          "0%": { opacity: "0", transform: "translateY(24px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
         },
-        slideUp: {
-          "0%": { opacity: 0, transform: "translateY(12px)" },
-          "100%": { opacity: 1, transform: "translateY(0)" },
+        "fade-in": {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
         },
-        blink: {
-          "50%": { opacity: 0 },
+        "scroll-left": {
+          "0%": { transform: "translateX(0)" },
+          "100%": { transform: "translateX(-50%)" },
         },
+        "scroll-right": {
+          "0%": { transform: "translateX(-50%)" },
+          "100%": { transform: "translateX(0)" },
+        },
+      },
+      animation: {
+        "fade-up": "fade-up 0.6s ease-out forwards",
+        "fade-in": "fade-in 0.3s ease-out forwards",
+        "scroll-left": "scroll-left 30s linear infinite",
+        "scroll-right": "scroll-right 30s linear infinite",
       },
     },
   },
