@@ -14,6 +14,7 @@ from services.pdf_service import extract_text_from_bytes
 from services.llm_service import prepare_transcript
 from chains.theory_chain import run_theory_chain
 from chains.notebook_chain import run_notebook_chain
+from chains.flowchart_chain import run_flowchart_chain
 
 
 def _update_job(job_id: str, **kwargs):
@@ -62,10 +63,11 @@ async def process_job(job_id: str):
         # 3. Process with LLM
         _update_job(job_id, status="processing", progress=30)
 
-        # Run theory and notebook chains concurrently
-        theory_md, notebook_md = await asyncio.gather(
+        # Run theory, notebook, and flowchart chains concurrently
+        theory_md, notebook_md, flowchart_md = await asyncio.gather(
             run_theory_chain(raw_text),
             run_notebook_chain(raw_text),
+            run_flowchart_chain(raw_text),
         )
 
         _update_job(job_id, progress=80)
@@ -79,6 +81,9 @@ async def process_job(job_id: str):
             },
             "notebook": {
                 "content": notebook_md,
+            },
+            "flowchart": {
+                "content": flowchart_md,
             },
         }
 

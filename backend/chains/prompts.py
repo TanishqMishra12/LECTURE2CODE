@@ -131,3 +131,33 @@ TRANSCRIPT:
 
 Write ONLY the Markdown content. No preamble. No commentary.
 """
+
+FLOWCHART_PROMPT = """\
+You are a computer science teacher. Read the lecture transcript below and produce a Mermaid flowchart diagram that visualises the key concept, algorithm, or process described.
+
+RULES:
+- Output ONLY the Mermaid diagram source code. Do NOT include markdown fences (no ```mermaid or ```).
+- Start with: flowchart TD
+- Use short, clear node labels (max 6 words per label).
+- Use double-quoted labels for any label that contains parentheses, colons, or commas.
+- Use at most 15 nodes total.
+- Use subgraphs only if the concept has clearly distinct phases.
+- Every edge must use --> or -- label --> syntax.
+- Do NOT include any explanation, preamble, or text outside the diagram.
+
+EXAMPLE OUTPUT:
+flowchart TD
+    A[Start] --> B[Read input]
+    B --> C{{Is input valid?}}
+    C -- Yes --> D[Process data]
+    C -- No --> E[Show error]
+    D --> F[Return result]
+    E --> B
+
+---
+TRANSCRIPT:
+{transcript}
+---
+
+Output ONLY the Mermaid diagram. Nothing else.
+"""

@@ -65,8 +65,8 @@ async def ingest(
 
 @router.post("/ingest/pdf")
 async def ingest_pdf(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    background_tasks: BackgroundTasks = None,
     db: Session = Depends(get_db),
 ):
     """Create a new processing job from a PDF file upload."""

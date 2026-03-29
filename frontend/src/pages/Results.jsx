@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { fetchResults } from "../store/resultStore";
 
@@ -8,6 +8,7 @@ export default function Results() {
     const [error, setError] = useState(null);
     const [activeTab, setActiveTab] = useState("theory");
     const [copied, setCopied] = useState(false);
+    const mermaidRef = useRef(null);
 
     useEffect(() => {
         if (!jobId) return;
@@ -15,6 +16,35 @@ export default function Results() {
             .then(setData)
             .catch((err) => setError(err.message));
     }, [jobId]);
+
+    // Render Mermaid diagram whenever the flowchart tab is active and data is ready
+    useEffect(() => {
+        if (activeTab !== "flowchart" || !data?.flowchart?.content) return;
+
+        const renderDiagram = async () => {
+            try {
+                // Mermaid 11 is loaded as an ES module from CDN — grab it from the module registry
+                // via dynamic import so we don't have to bundle it.
+                const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")).default;
+                mermaid.initialize({ startOnLoad: false, theme: "default", securityLevel: "loose" });
+
+                const el = mermaidRef.current;
+                if (!el) return;
+                el.removeAttribute("data-processed");
+                el.textContent = data.flowchart.content;
+
+                const { svg } = await mermaid.render("flowchart-svg-" + Date.now(), data.flowchart.content);
+                el.innerHTML = svg;
+            } catch (err) {
+                console.error("Mermaid render error:", err);
+                if (mermaidRef.current) {
+                    mermaidRef.current.innerHTML = `<pre style="color:#ef4444;font-size:12px;white-space:pre-wrap">${data.flowchart.content}</pre>`;
+                }
+            }
+        };
+
+        renderDiagram();
+    }, [activeTab, data]);
 
     const handleCopy = async (text) => {
         try {
@@ -59,6 +89,7 @@ export default function Results() {
 
     const theoryContent = data.theory?.content || "";
     const notebookContent = data.notebook?.content || "";
+    const flowchartContent = data.flowchart?.content || "";
 
     return (
         <div className="min-h-screen bg-bg-page font-body">
@@ -86,6 +117,7 @@ export default function Results() {
                         {[
                             { id: "theory", label: "Theory Notes" },
                             { id: "notebook", label: "Code Notebook" },
+                            { id: "flowchart", label: "🗺 Flowchart" },
                             { id: "split", label: "Split View" },
                         ].map((tab) => (
                             <button
@@ -132,6 +164,52 @@ export default function Results() {
                             </button>
                         </div>
                         <div className="prose-lecture" dangerouslySetInnerHTML={{ __html: markdownToHtml(notebookContent) }} />
+                    </div>
+                )}
+
+                {activeTab === "flowchart" && (
+                    <div className="bg-white border border-border-light rounded-xl p-8">
+                        <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h2 className="text-xl font-heading font-bold text-text-primary">Concept Flowchart</h2>
+                                <p className="text-xs text-text-muted mt-1">Auto-generated visual summary of the key algorithm or process</p>
+                            </div>
+                            <button
+                                onClick={() => handleCopy(flowchartContent)}
+                                className="text-xs text-text-muted border border-border-light px-3 py-1.5 rounded-md hover:bg-bg-muted transition-colors"
+                            >
+                                {copied ? "✓ Copied (Mermaid)" : "Copy Mermaid"}
+                            </button>
+                        </div>
+
+                        {flowchartContent ? (
+                            <div className="flex flex-col items-center">
+                                {/* Rendered Mermaid diagram */}
+                                <div
+                                    ref={mermaidRef}
+                                    className="w-full overflow-x-auto flex justify-center py-4"
+                                    style={{ minHeight: "200px" }}
+                                >
+                                    <div className="text-text-muted text-sm animate-pulse">Rendering diagram…</div>
+                                </div>
+
+                                {/* Collapsible raw source */}
+                                <details className="mt-6 w-full">
+                                    <summary className="text-xs text-text-muted cursor-pointer hover:text-text-secondary select-none">
+                                        View Mermaid source
+                                    </summary>
+                                    <pre className="mt-2 p-4 bg-bg-muted rounded-lg text-xs font-mono text-text-primary overflow-x-auto whitespace-pre-wrap">
+                                        {flowchartContent}
+                                    </pre>
+                                </details>
+                            </div>
+                        ) : (
+                            <div className="text-center py-16 text-text-muted">
+                                <div className="text-4xl mb-3">🗺</div>
+                                <p className="text-sm">No flowchart available for this result.</p>
+                                <p className="text-xs mt-1">Re-process your lecture to generate one.</p>
+                            </div>
+                        )}
                     </div>
                 )}
 
